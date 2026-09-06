@@ -12,10 +12,19 @@ struct AddressDecomp
 
 struct CacheLine
 {
+    enum class MESIState
+    {
+        Invalid,
+        Shared,
+        Exclusive,
+        Modified
+    };
+    
     bool valid{};
     bool dirty{};
     std::uint32_t tag{};
     std::array<std::uint8_t, 16> data{}; // 16 1-byte integers
+    MESIState state{}; // eventually replaces valid and dirty but I don't want to break existing implementation
 };
 
 class Cache

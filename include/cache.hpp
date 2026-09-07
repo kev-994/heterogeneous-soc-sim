@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bus.hpp"
+#include "memory.hpp"
 
 #include <cstdint>
 #include <array>
@@ -32,6 +33,10 @@ struct CacheLine
 class Cache
 {
 public:
+    Cache(Memory& memory)
+        : m_memory{memory}
+    {}
+
     enum class CacheResult
     {
         Hit,
@@ -52,19 +57,18 @@ public:
 
     ReadResult read(std::uint32_t address);
     void write(std::uint32_t address, std::uint8_t data);
-    void write_memory(std::uint32_t address, std::uint8_t data);
     void install_cache_line(CacheLine& line, std::uint32_t line_base, std::uint32_t tag);
     void evict(CacheLine& line, std::uint32_t set);
+    void receive_line(std::uint32_t address, const std::array<uint8_t, 16>& data);
     
     SnoopResult snoop(BusRequest request, std::uint32_t address);
 
     MESIState get_state(std::uint32_t address) const;
-    friend std::uint8_t getByte(const Cache& cache, std::uint32_t address);
 
 private:
     // 2 sets × 2 ways of CacheLine
     std::array<std::array<CacheLine, 2>, 2> m_cache{};
-    std::array<std::uint8_t, 256> m_memory{};
+    Memory& m_memory;
 };
 
 AddressDecomp decompose(std::uint32_t address);

@@ -17,7 +17,7 @@ void Interconnect::broadcast(BusRequest request, std::uint32_t address,  Cache& 
             // transfer data if necessary
             if (snoop_result.has_data)
             {
-            
+                requester.receive_line(address, snoop_result.data);
             }
         }
     }

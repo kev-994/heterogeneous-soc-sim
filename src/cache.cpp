@@ -15,18 +15,13 @@ AddressDecomp decompose(std::uint32_t address)
     return decomp;
 }
 
-void Cache::write_memory(std::uint32_t address, std::uint8_t data)
-{
-    assert(address < m_memory.size());
-    m_memory[address] = data;
-}
 
 void Cache::install_cache_line(CacheLine& line, std::uint32_t line_base, std::uint32_t tag)
 {
     // copy the data that's in memory
     for (std::size_t i{}; i < line.data.size(); ++i)
     {
-        line.data[i] = m_memory[line_base+i];
+        line.data[i] = m_memory.get_byte(line_base+i);
     }
 
     // cache line fill
@@ -45,7 +40,7 @@ void Cache::evict(CacheLine& line, std::uint32_t set)
         // write old cache line to memory if dirty
         for (std::size_t i{}; i < line.data.size(); ++i)
         {
-            m_memory[old_line_base+i] = line.data[i]; 
+            m_memory.write(old_line_base+i, line.data[i]); 
         }
     }
 }
@@ -156,6 +151,7 @@ MESIState Cache::get_state(std::uint32_t address) const
     return MESIState::Invalid;
 }
 
+// handles coherence and memory consistency
 Cache::SnoopResult Cache::snoop(BusRequest request, std::uint32_t address)
 {
     // find address in this cache
@@ -185,8 +181,17 @@ Cache::SnoopResult Cache::snoop(BusRequest request, std::uint32_t address)
                 else if (way.state == MESIState::Modified)
                 {
                     way.state = MESIState::Shared;
+                    way.dirty = false;
                     snoop_result.has_data = true;
                     snoop_result.data = way.data;
+
+                    // update memory with new data
+                    const std::uint32_t line_base = (way.tag << 5) | (set << 4);
+
+                    for (std::size_t i{}; i < way.data.size(); ++i)
+                    {
+                        m_memory.write(line_base+i, way.data[i]); 
+                    }
                 }
             }
 
@@ -194,10 +199,47 @@ Cache::SnoopResult Cache::snoop(BusRequest request, std::uint32_t address)
         }
     }
 
-    return SnoopResult{false};
+    return snoop_result;
 }
 
-std::uint8_t getByte(const Cache& cache, std::uint32_t address)
+void install_received_line(CacheLine& line, const auto& data, const auto tag)
 {
-    return cache.m_memory[address];
+    line.data  = data;
+    line.valid = true;
+    line.tag   = tag;
+    line.dirty = false;
+    line.state = MESIState::Shared;
+
+}
+
+void Cache::receive_line(std::uint32_t address, const std::array<uint8_t, 16>& data)
+{
+    // find address in this cache
+    const auto decomposed_address{decompose(address)};
+
+    const auto set = decomposed_address.set_index;
+    const auto tag = decomposed_address.tag;
+
+    for (auto& way : m_cache[set])
+    {
+        if (way.valid && way.tag == tag)
+        {
+            install_received_line(way, data, tag);
+            return;
+        }
+    }
+
+    for (auto& way : m_cache[set])
+    {
+        if (!way.valid)
+        {
+            install_received_line(way, data, tag);
+            return;
+        }
+    }
+
+    // way 0 replacement
+    auto& way0{m_cache[set][0]};
+    evict(way0, set);
+    install_received_line(way0, data, tag);
 }

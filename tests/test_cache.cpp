@@ -1,4 +1,5 @@
 #include "cache.hpp"
+#include "interconnect.hpp"
 
 #include <cassert>
 
@@ -270,4 +271,81 @@ int main()
         assert(fifth.result == Cache::CacheResult::Miss);
         assert(fifth.data == 99);
     }
+
+    // test exclusive to shared snoop transition
+    {
+        Cache cache0{};
+        Cache cache1{};
+
+        Interconnect interconnect{};
+        interconnect.attach_cache(cache0);
+        interconnect.attach_cache(cache1);
+
+        cache0.read(0x00);
+        assert(cache0.get_state(0x00) == MESIState::Exclusive);
+
+        // cache 1 wants to read 0x00
+        interconnect.broadcast(BusRequest::BusRd, 0x00, cache1);
+        assert(cache0.get_state(0x00) == MESIState::Shared);
+
+        // shared to shared
+        interconnect.broadcast(BusRequest::BusRd, 0x00, cache1);
+        assert(cache0.get_state(0x00) == MESIState::Shared);
+    }
+
+    // test invalid to invalid snoop 
+    {
+        Cache cache0{};
+        Cache cache1{};
+
+        Interconnect interconnect{};
+        interconnect.attach_cache(cache0);
+        interconnect.attach_cache(cache1);
+
+        assert(cache0.get_state(0x00) == MESIState::Invalid);
+
+        // cache 1 wants to read 0x00
+        interconnect.broadcast(BusRequest::BusRd, 0x00, cache1);
+        assert(cache0.get_state(0x00) == MESIState::Invalid);
+    }
+
+    // test modified to shared snoop
+    {
+        Cache cache0{};
+        Cache cache1{};
+
+        Interconnect interconnect{};
+        interconnect.attach_cache(cache0);
+        interconnect.attach_cache(cache1);
+
+        // modify this cache line in cache0
+        cache0.write(0x00, 0);
+
+        assert(cache0.get_state(0x00) == MESIState::Modified);
+
+        // cache 1 wants to read 0x00
+        const auto snoop_result{cache0.snoop(BusRequest::BusRd, 0x00)};
+        assert(cache0.get_state(0x00) == MESIState::Shared);
+        assert(snoop_result.has_data == true);
+    }
+
+    // then test the interconnect
+    {
+        Cache cache0{};
+        Cache cache1{};
+
+        Interconnect interconnect{};
+        interconnect.attach_cache(cache0);
+        interconnect.attach_cache(cache1);
+
+        // modify this cache line in cache0
+        cache0.write(0x00, 0);
+
+        assert(cache0.get_state(0x00) == MESIState::Modified);
+
+        // cache 1 wants to read 0x00
+        interconnect.broadcast(BusRequest::BusRd, 0x00, cache1);
+        assert(cache0.get_state(0x00) == MESIState::Shared);
+    }
+
 }

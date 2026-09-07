@@ -60,7 +60,7 @@ Cache::ReadResult Cache::read(std::uint32_t address)
     const auto set = decomposedAddress.set_index;
     const auto tag = decomposedAddress.tag;       // requested tag
 
-    for (const auto& way : m_cache[set]) // way is a CacheLine
+    for (auto& way : m_cache[set]) // way is a CacheLine
     {
         if (way.valid && way.tag == tag)          // way.tag is the CacheLine tag (stored tag)
         {
@@ -78,6 +78,7 @@ Cache::ReadResult Cache::read(std::uint32_t address)
             install_cache_line(way, line_base, tag);
             read_result.result = CacheResult::Miss;
             read_result.data   = way.data[decomposedAddress.offset];
+            way.state = MESIState::Exclusive;
             return read_result;
         }
     }
@@ -88,6 +89,7 @@ Cache::ReadResult Cache::read(std::uint32_t address)
     install_cache_line(way0, line_base, tag);
     read_result.result = CacheResult::Miss;
     read_result.data   = way0.data[decomposedAddress.offset];
+    way0.state = MESIState::Exclusive;
     return read_result;
 };
 
@@ -108,6 +110,7 @@ void Cache::write(std::uint32_t address, std::uint8_t data)
         {
             way.data[decomposedAddress.offset] = data;
             way.dirty = true;
+            way.state = MESIState::Modified;
             return;
         }
     }
@@ -120,6 +123,7 @@ void Cache::write(std::uint32_t address, std::uint8_t data)
             install_cache_line(way, line_base, tag);
             way.data[decomposedAddress.offset] = data;
             way.dirty = true;
+            way.state = MESIState::Modified;
             return;
         }
     }
@@ -130,6 +134,67 @@ void Cache::write(std::uint32_t address, std::uint8_t data)
     install_cache_line(way0, line_base, tag);
     way0.data[decomposedAddress.offset] = data;
     way0.dirty = true;
+    way0.state = MESIState::Modified;
+}
+
+MESIState Cache::get_state(std::uint32_t address) const
+{
+    // find address in this cache
+    const auto decomposed_address{decompose(address)};
+
+    const auto set = decomposed_address.set_index;
+    const auto tag = decomposed_address.tag;
+    
+    for (const auto& way : m_cache[set])
+    {
+        if (way.valid && way.tag == tag)
+        {
+            return way.state;
+        }
+    }
+
+    return MESIState::Invalid;
+}
+
+Cache::SnoopResult Cache::snoop(BusRequest request, std::uint32_t address)
+{
+    // find address in this cache
+    const auto decomposed_address{decompose(address)};
+
+    const auto set = decomposed_address.set_index;
+    const auto tag = decomposed_address.tag;
+
+    SnoopResult snoop_result{};
+
+    for (auto& way : m_cache[set])
+    {
+        // Do I have the requested cache line?
+        if (way.valid && way.tag == tag)
+        {
+            // Another cache wants to read it.
+            if (request == BusRequest::BusRd)
+            {
+                // E -> S
+                if (way.state == MESIState::Exclusive)
+                {
+                    way.state = MESIState::Shared;
+                    snoop_result.has_data = false;
+                }
+
+                // M -> S
+                else if (way.state == MESIState::Modified)
+                {
+                    way.state = MESIState::Shared;
+                    snoop_result.has_data = true;
+                    snoop_result.data = way.data;
+                }
+            }
+
+            return snoop_result;
+        }
+    }
+
+    return SnoopResult{false};
 }
 
 std::uint8_t getByte(const Cache& cache, std::uint32_t address)

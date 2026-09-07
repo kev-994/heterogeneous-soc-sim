@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(cache_tests
     src/cache.cpp
+    src/interconnect.cpp
     tests/test_cache.cpp
 )
 

@@ -1,25 +1,33 @@
 #include "interconnect.hpp"
-#include "cache.hpp"
+
+#include <cstdint>
 
 void Interconnect::attach_cache(Cache& cache)
 {
     m_caches.push_back(&cache);
 }
 
-void Interconnect::broadcast(BusRequest request, std::uint32_t address,  Cache& requester)
+Interconnect::BroadcastResult Interconnect::broadcast(BusRequest request, std::uint32_t address,  Cache& requester)
 {
+    BroadcastResult broadcast_result{};
+    
     for (Cache* cache : m_caches)
     {
         if (cache != &requester)
         {
             const auto snoop_result{cache->snoop(request, address)};
 
-            // transfer data if necessary
-            if (snoop_result.has_data)
+            // data comes from another cache
+            if (snoop_result.hit)
             {
-                requester.receive_line(address, snoop_result.data);
+                broadcast_result.data_found = true;
+                broadcast_result.data = snoop_result.data;
+                return broadcast_result;
             }
         }
     }
+
+    // all caches checked, get data from memory
+    return broadcast_result;
 }
                    

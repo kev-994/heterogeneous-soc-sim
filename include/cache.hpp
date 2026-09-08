@@ -2,6 +2,7 @@
 
 #include "bus.hpp"
 #include "memory.hpp"
+#include "interconnect.hpp"
 
 #include <cstdint>
 #include <array>
@@ -33,8 +34,8 @@ struct CacheLine
 class Cache
 {
 public:
-    Cache(Memory& memory)
-        : m_memory{memory}
+    Cache(Memory& memory, Interconnect& interconnect)
+        : m_memory{memory}, m_interconnect{interconnect}
     {}
 
     enum class CacheResult
@@ -51,7 +52,7 @@ public:
 
     struct SnoopResult
     {
-        bool has_data{};
+        bool hit{};
         std::array<std::uint8_t, 16> data{};
     };
 
@@ -69,6 +70,7 @@ private:
     // 2 sets × 2 ways of CacheLine
     std::array<std::array<CacheLine, 2>, 2> m_cache{};
     Memory& m_memory;
+    Interconnect& m_interconnect;
 };
 
 AddressDecomp decompose(std::uint32_t address);

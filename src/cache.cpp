@@ -170,19 +170,32 @@ Cache::SnoopResult Cache::snoop(BusRequest request, std::uint32_t address)
             // Another cache wants to read it.
             if (request == BusRequest::BusRd)
             {
+                // S -> S
+                {
+                    if (way.state == MESIState::Shared)
+                    {
+                        // not entirely necessary
+                        way.state = MESIState::Shared;
+                        snoop_result.hit = true;
+                        snoop_result.data = way.data;
+                    }
+                }
+                
                 // E -> S
                 if (way.state == MESIState::Exclusive)
                 {
                     way.state = MESIState::Shared;
-                    snoop_result.has_data = false;
+                    snoop_result.hit = true;
+                    snoop_result.data = way.data;
                 }
+
 
                 // M -> S
                 else if (way.state == MESIState::Modified)
                 {
                     way.state = MESIState::Shared;
                     way.dirty = false;
-                    snoop_result.has_data = true;
+                    snoop_result.hit = true;
                     snoop_result.data = way.data;
 
                     // update memory with new data
@@ -202,7 +215,7 @@ Cache::SnoopResult Cache::snoop(BusRequest request, std::uint32_t address)
     return snoop_result;
 }
 
-void install_received_line(CacheLine& line, const auto& data, const auto tag)
+void install_received_line(CacheLine& line, const std::array<std::uint8_t, 16>& data, std::uint32_t tag)
 {
     line.data  = data;
     line.valid = true;

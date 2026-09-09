@@ -46,3 +46,13 @@ add_executable(cache_tests
 target_include_directories(cache_tests PRIVATE
     include
 )
+
+add_executable(interconnect_tests
+    src/cache.cpp
+    src/interconnect.cpp
+    tests/test_interconnect.cpp
+)
+
+target_include_directories(interconnect_tests PRIVATE
+    include
+)

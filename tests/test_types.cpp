@@ -35,6 +35,34 @@ int main()
 
     assert(read != write);
 
+    // Check SimulationMode values
+    SimulationMode functional = SimulationMode::Functional;
+    SimulationMode timing = SimulationMode::Timing;
+
+    assert(functional != timing);
+
+    // Check Transaction values
+    Transaction bus_rd = Transaction::BusRd;
+    Transaction bus_rdx = Transaction::BusRdX;
+    Transaction bus_upgr = Transaction::BusUpgr;
+
+    assert(bus_rd != bus_rdx);
+    assert(bus_rd != bus_upgr);
+    assert(bus_rdx != bus_upgr);
+
+    // Check CoherenceTransaction fields
+    CoherenceTransaction coherence_transaction{
+        123,
+        42,
+        Transaction::BusRdX,
+        0x34
+    };
+
+    assert(coherence_transaction.transaction_id == 123);
+    assert(coherence_transaction.agent_id == 42);
+    assert(coherence_transaction.type == Transaction::BusRdX);
+    assert(coherence_transaction.address == 0x34);
+
     std::cout << "All type tests passed.\n";
 
     return 0;

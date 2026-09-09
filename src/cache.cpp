@@ -156,7 +156,7 @@ void Cache::handle_write_hit(CacheLine& line)
     }
 }
 
-void Cache::snoop(CoherenceTransaction transaction, Address address) // snoop target 
+void Cache::snoop(Transaction transaction_type, Address address) // snoop target 
 {
     CacheLine* line{find_line(address)};
 
@@ -168,8 +168,8 @@ void Cache::snoop(CoherenceTransaction transaction, Address address) // snoop ta
     auto& state{line->state};
     
     // find_line() never returns a line that is invalid, any such case is defensive coding
-    using enum CoherenceTransaction;
-    switch (transaction)
+    using enum Transaction;
+    switch (transaction_type)
     {
         case BusRd:
         {

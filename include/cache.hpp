@@ -33,8 +33,8 @@ struct CacheLine
 class Cache
 {
 public:
-    Cache(const SystemConfig& config)
-        : m_config{config}, m_sets(config.cache_set_count)
+    Cache(const SystemConfig& config, AgentId agent_id)
+        : m_config{config}, m_sets(config.cache_set_count), m_agent_id{agent_id}
     {
         assert(is_power_of_two(config.cache_line_size)); // cache geometry validation
         assert(is_power_of_two(config.cache_set_count));
@@ -64,11 +64,13 @@ public:
     void write(Address address, std::uint8_t data);
     void handle_read_hit(const CacheLine& line) const;
     void handle_write_hit(CacheLine& line);
-    void snoop(CoherenceTransaction transaction, Address address);
+    void snoop(Transaction transaction_type, Address address);
+    AgentId agent_id() const {return m_agent_id;}
 
 private:
     SystemConfig m_config{};
     std::vector<std::vector<CacheLine>> m_sets{};
+    AgentId m_agent_id{};
 
     std::uint32_t m_offset_bits{};
     std::uint32_t m_set_bits{};

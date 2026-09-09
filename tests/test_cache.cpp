@@ -7,7 +7,7 @@
 void test_address_zero()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     AddressDecomposition result = cache.decompose(0);
 
@@ -19,7 +19,7 @@ void test_address_zero()
 void test_offset_decomposition()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     // 16-byte cache line -> 4 offset bits.
     AddressDecomposition result = cache.decompose(0x0F);
@@ -32,7 +32,7 @@ void test_offset_decomposition()
 void test_offset_rollover()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     // Address 0x10 is the start of the next cache line.
     AddressDecomposition result = cache.decompose(0x10);
@@ -45,7 +45,7 @@ void test_offset_rollover()
 void test_set_decomposition()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     // Current configuration:
     // 16-byte lines -> 4 offset bits
@@ -65,7 +65,7 @@ void test_set_decomposition()
 void test_set_rollover()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     // 0x20 is the third cache line.
     // With two sets, it maps back to set 0.
@@ -79,7 +79,7 @@ void test_set_rollover()
 void test_tag_decomposition()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     // 0x20 = third cache line.
     // Line 0 -> set 0, tag 0
@@ -96,7 +96,7 @@ void test_tag_decomposition()
 void test_offset_set_and_tag()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     // Address = 0x35
     //
@@ -118,7 +118,7 @@ void test_offset_set_and_tag()
 void test_cache_geometry()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     assert(cache.m_sets.size() == config.cache_set_count);
 
@@ -136,7 +136,7 @@ void test_cache_geometry()
 void test_cache_lines_initialised()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     for (const auto& set : cache.m_sets)
     {
@@ -158,7 +158,7 @@ void test_custom_cache_geometry()
     config.cache_set_count = 4;
     config.cache_associativity = 3;
 
-    Cache cache{config};
+    Cache cache{config, 0};
 
     assert(cache.m_sets.size() == 4);
 
@@ -177,7 +177,7 @@ void test_custom_cache_geometry()
 void test_empty_cache_miss()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     assert(!cache.contains(0x00));
     assert(!cache.contains(0x10));
@@ -187,7 +187,7 @@ void test_empty_cache_miss()
 void test_install_line_creates_hit()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -200,7 +200,7 @@ void test_install_line_creates_hit()
 void test_install_line_covers_entire_line()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -215,7 +215,7 @@ void test_install_line_covers_entire_line()
 void test_install_line_different_line_is_miss()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -229,7 +229,7 @@ void test_install_line_different_line_is_miss()
 void test_install_multiple_lines_same_set()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -244,7 +244,7 @@ void test_install_multiple_lines_same_set()
 void test_install_state()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -260,7 +260,7 @@ void test_install_state()
 void test_find_line_empty_cache()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     assert(cache.find_line(0x20) == nullptr);
 }
@@ -268,7 +268,7 @@ void test_find_line_empty_cache()
 void test_find_line_returns_installed_line()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -283,7 +283,7 @@ void test_find_line_returns_installed_line()
 void test_find_line_returns_correct_data()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -305,7 +305,7 @@ void test_find_line_returns_correct_data()
 void test_find_line_different_line()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -318,7 +318,7 @@ void test_find_line_different_line()
 void test_find_line_same_cache_line()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -340,7 +340,7 @@ void test_find_line_same_cache_line()
 void test_read_installed_byte()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -354,7 +354,7 @@ void test_read_installed_byte()
 void test_read_different_offsets()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -373,7 +373,7 @@ void test_read_different_offsets()
 void test_read_multiple_lines()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line1{};
     line1.data.resize(config.cache_line_size);
@@ -393,7 +393,7 @@ void test_read_multiple_lines()
 void test_write_and_read()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -408,7 +408,7 @@ void test_write_and_read()
 void test_write_different_offsets()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -427,7 +427,7 @@ void test_write_different_offsets()
 void test_write_preserves_other_bytes()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -446,7 +446,7 @@ void test_write_preserves_other_bytes()
 void test_write_multiple_lines()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line1{};
     line1.data.resize(config.cache_line_size);
@@ -467,7 +467,7 @@ void test_write_multiple_lines()
 void test_read_hit_preserves_shared_state()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -485,7 +485,7 @@ void test_read_hit_preserves_shared_state()
 void test_read_hit_preserves_exclusive_state()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -503,7 +503,7 @@ void test_read_hit_preserves_exclusive_state()
 void test_read_hit_preserves_modified_state()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -521,7 +521,7 @@ void test_read_hit_preserves_modified_state()
 void test_write_shared_state()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -540,7 +540,7 @@ void test_write_shared_state()
 void test_write_exclusive_transitions_to_modified()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -559,7 +559,7 @@ void test_write_exclusive_transitions_to_modified()
 void test_write_modified_state()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -578,7 +578,7 @@ void test_write_modified_state()
 void test_snoop_busrd_shared_state()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -586,7 +586,7 @@ void test_snoop_busrd_shared_state()
 
     cache.install_line(0x00, line, MESIState::Shared);
 
-    cache.snoop(CoherenceTransaction::BusRd, 0x00);
+    cache.snoop(Transaction::BusRd, 0x00);
 
     const CacheLine* result{cache.find_line(0x00)};
 
@@ -594,17 +594,16 @@ void test_snoop_busrd_shared_state()
     assert(result->state == MESIState::Shared);
 }
 
-
 void test_snoop_busrd_exclusive_to_shared()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
 
     cache.install_line(0x00, line, MESIState::Exclusive);
 
-    cache.snoop(CoherenceTransaction::BusRd, 0x00);
+    cache.snoop(Transaction::BusRd, 0x00);
 
     const CacheLine* result{cache.find_line(0x00)};
 
@@ -612,11 +611,10 @@ void test_snoop_busrd_exclusive_to_shared()
     assert(result->state == MESIState::Shared);
 }
 
-
 void test_snoop_busrd_modified_to_shared()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -624,7 +622,7 @@ void test_snoop_busrd_modified_to_shared()
 
     cache.install_line(0x00, line, MESIState::Modified);
 
-    cache.snoop(CoherenceTransaction::BusRd, 0x00);
+    cache.snoop(Transaction::BusRd, 0x00);
 
     const CacheLine* result{cache.find_line(0x00)};
 
@@ -635,41 +633,38 @@ void test_snoop_busrd_modified_to_shared()
     assert(result->data[0] == 42);
 }
 
-
 void test_snoop_busrdx_shared_to_invalid()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
 
     cache.install_line(0x00, line, MESIState::Shared);
 
-    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
+    cache.snoop(Transaction::BusRdX, 0x00);
 
     assert(!cache.contains(0x00));
 }
 
-
 void test_snoop_busrdx_exclusive_to_invalid()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
 
     cache.install_line(0x00, line, MESIState::Exclusive);
 
-    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
+    cache.snoop(Transaction::BusRdX, 0x00);
 
     assert(!cache.contains(0x00));
 }
 
-
 void test_snoop_busrdx_modified_to_invalid()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
@@ -677,52 +672,49 @@ void test_snoop_busrdx_modified_to_invalid()
 
     cache.install_line(0x00, line, MESIState::Modified);
 
-    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
+    cache.snoop(Transaction::BusRdX, 0x00);
 
     assert(!cache.contains(0x00));
 }
 
-
 void test_snoop_busupgr_shared_to_invalid()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
 
     cache.install_line(0x00, line, MESIState::Shared);
 
-    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+    cache.snoop(Transaction::BusUpgr, 0x00);
 
     assert(!cache.contains(0x00));
 }
 
-
 void test_snoop_busupgr_exclusive_to_invalid()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
 
     cache.install_line(0x00, line, MESIState::Exclusive);
 
-    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+    cache.snoop(Transaction::BusUpgr, 0x00);
 
     assert(!cache.contains(0x00));
 }
 
-
 void test_snoop_busupgr_modified_unchanged()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     CacheLine line{};
 
     cache.install_line(0x00, line, MESIState::Modified);
 
-    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+    cache.snoop(Transaction::BusUpgr, 0x00);
 
     const CacheLine* result{cache.find_line(0x00)};
 
@@ -730,19 +722,18 @@ void test_snoop_busupgr_modified_unchanged()
     assert(result->state == MESIState::Modified);
 }
 
-
 void test_snoop_absent_line()
 {
     SystemConfig config{};
-    Cache cache{config};
+    Cache cache{config, 0};
 
     // There is no line at this address.
     assert(!cache.contains(0x00));
 
     // Snoop should simply do nothing rather than dereferencing nullptr.
-    cache.snoop(CoherenceTransaction::BusRd, 0x00);
-    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
-    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+    cache.snoop(Transaction::BusRd, 0x00);
+    cache.snoop(Transaction::BusRdX, 0x00);
+    cache.snoop(Transaction::BusUpgr, 0x00);
 
     assert(!cache.contains(0x00));
 }

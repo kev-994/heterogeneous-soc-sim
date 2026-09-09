@@ -21,9 +21,16 @@ enum class SimulationMode
     Functional,
     Timing
 };
-enum class CoherenceTransaction
+enum class Transaction
 {
     BusRd,  // Lose exclusive ownership
     BusRdX, // Another cache wants the line and exclusive ownership.
     BusUpgr // The requester already has a shared copy and wants to become the sole owner.
+};
+struct CoherenceTransaction
+{
+    TransactionId transaction_id{};
+    AgentId agent_id{}; // requester
+    Transaction type{};
+    Address address{};
 };

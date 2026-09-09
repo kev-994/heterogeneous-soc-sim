@@ -28,6 +28,15 @@ Interconnect::BroadcastResult Interconnect::broadcast(BusRequest request, std::u
     }
 
     // all caches checked, get data from memory
+    std::array<std::uint8_t, 16> memory_data{};
+    std::uint32_t line_base{address & ~0xF};
+
+    for (std::size_t i{}; i < memory_data.size(); ++i)
+    {
+        memory_data[i] = m_memory.get_byte(line_base+i);
+    }
+    broadcast_result.data = memory_data;
+    
     return broadcast_result;
 }
                    

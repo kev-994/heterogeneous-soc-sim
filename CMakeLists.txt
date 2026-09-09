@@ -29,3 +29,20 @@ add_executable(memory_tests
 target_include_directories(memory_tests PRIVATE
     include
 )
+
+add_executable(utils_tests
+    tests/test_utils.cpp
+)
+
+target_include_directories(utils_tests PRIVATE
+    include
+)
+
+add_executable(cache_tests
+    src/cache.cpp
+    tests/test_cache.cpp
+)
+
+target_include_directories(cache_tests PRIVATE
+    include
+)

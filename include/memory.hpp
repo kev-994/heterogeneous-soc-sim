@@ -15,7 +15,7 @@ public:
 
     struct LineData
     {
-        std::vector<std::uint8_t> data;
+        std::vector<std::uint8_t> data{};
     };
 
     std::uint8_t read_byte(Address address) const;
@@ -26,6 +26,6 @@ public:
 
 private: 
     SystemConfig m_config{};
-    std::vector<std::uint8_t> m_memory;
+    std::vector<std::uint8_t> m_memory{};
 
 };

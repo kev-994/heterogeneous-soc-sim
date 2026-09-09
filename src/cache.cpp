@@ -1,5 +1,6 @@
 #include "cache.hpp"
 
+#include "types.hpp"
 #include "utils.hpp"
 
 #include <cassert>
@@ -26,7 +27,7 @@ bool Cache::contains(Address address) const
     return find_line(address) != nullptr;
 }
 
-void Cache::install_line(Address address, const CacheLine& line)
+void Cache::install_line(Address address, const CacheLine& line, MESIState state)
 {
     const auto decomposed_address{decompose(address)};
 
@@ -35,11 +36,11 @@ void Cache::install_line(Address address, const CacheLine& line)
 
     for (auto& line_ : m_sets[set_index])
     {
-        if (!line_.valid)
+        if (line_.state == MESIState::Invalid)
         {
             line_.data = line.data;
             line_.tag = tag;
-            line_.valid = true;
+            line_.state = state;
             return;
         }
     }
@@ -56,7 +57,7 @@ CacheLine* Cache::find_line(Address address)
 
     for (auto& line : m_sets[set_index])
     {
-        if (line.valid && line.tag == tag)
+        if (line.state != MESIState::Invalid && line.tag == tag)
         {
             return &line;
         }
@@ -74,7 +75,7 @@ const CacheLine* Cache::find_line(Address address) const
 
     for (const auto& line : m_sets[set_index])
     {
-        if (line.valid && line.tag == tag)
+        if (line.state != MESIState::Invalid && line.tag == tag)
         {
             return &line;
         }
@@ -88,6 +89,8 @@ std::uint8_t Cache::read(Address address) const
     const CacheLine* line{find_line(address)};
     assert(line != nullptr);
 
+    handle_read_hit(*line);
+
     const auto decomposed{decompose(address)};
 
     return line->data[decomposed.offset];
@@ -97,8 +100,118 @@ void Cache::write(Address address, std::uint8_t data)
 {
     CacheLine* line{find_line(address)};
     assert(line != nullptr);
+    
+    handle_write_hit(*line);
 
     const auto decomposed{decompose(address)};
 
     line->data[decomposed.offset] = data;
+}
+
+
+void Cache::handle_read_hit(const CacheLine& line) const
+{
+    assert(line.state != MESIState::Invalid);
+
+    using enum MESIState;
+
+    switch (line.state)
+    {
+        case Shared:
+        case Exclusive:
+        case Modified:
+            return;
+
+        case Invalid:
+            assert(false);
+            return;
+    }
+}
+
+void Cache::handle_write_hit(CacheLine& line)
+{
+    assert(line.state != MESIState::Invalid);
+    
+    using enum MESIState;
+    switch (line.state)
+    {
+        case Invalid:
+        {    
+            assert(false);
+            return;
+        }    
+        case Shared:
+        {
+            return;
+        }
+        case Exclusive: 
+        {
+            line.state = Modified;
+            return;
+        }
+        case Modified:
+        {
+            return;
+        }
+    }
+}
+
+void Cache::snoop(CoherenceTransaction transaction, Address address) // snoop target 
+{
+    CacheLine* line{find_line(address)};
+
+    if (line == nullptr)
+    {
+        return;
+    }
+
+    auto& state{line->state};
+    
+    // find_line() never returns a line that is invalid, any such case is defensive coding
+    using enum CoherenceTransaction;
+    switch (transaction)
+    {
+        case BusRd:
+        {
+            switch (state)
+            {
+                case MESIState::Invalid:
+                {
+                    return;
+                }
+                case MESIState::Shared: [[fallthrough]];
+                case MESIState::Exclusive: [[fallthrough]];
+                case MESIState::Modified:
+                    {
+                        state = MESIState::Shared;
+                        return;
+                    }   
+            }
+        }
+        
+        case BusRdX:
+        {
+            state = MESIState::Invalid;
+            return;
+        }
+
+        case BusUpgr:
+        {
+            switch (state)
+            {
+                case MESIState::Modified:
+                {
+                    return;
+                }
+                case MESIState::Shared: [[fallthrough]];
+                case MESIState::Exclusive: [[fallthrough]];
+                case MESIState::Invalid: 
+                    {
+                        state = MESIState::Invalid;
+                        return;
+                    }   
+            }   
+        }
+        
+    }
 }

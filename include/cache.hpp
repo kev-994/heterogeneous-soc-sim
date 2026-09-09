@@ -15,11 +15,19 @@ struct AddressDecomposition
     Address tag;
 };
 
+enum class MESIState
+{
+    Invalid,
+    Shared,
+    Exclusive,
+    Modified
+};
+
 struct CacheLine
 {
     std::uint32_t tag{};
     std::vector<std::uint8_t> data{};
-    bool valid{};
+    MESIState state{MESIState::Invalid};
 };
 
 class Cache
@@ -49,11 +57,14 @@ public:
     AddressDecomposition decompose(Address address) const;
 
     bool contains(Address address) const;
-    void install_line(Address address, const CacheLine& line);
+    void install_line(Address address, const CacheLine& line, MESIState state);
     CacheLine* find_line(Address address); 
     const CacheLine* find_line(Address address) const; // used by find_line() and contains()
     std::uint8_t read(Address address) const;
     void write(Address address, std::uint8_t data);
+    void handle_read_hit(const CacheLine& line) const;
+    void handle_write_hit(CacheLine& line);
+    void snoop(CoherenceTransaction transaction, Address address);
 
 private:
     SystemConfig m_config{};

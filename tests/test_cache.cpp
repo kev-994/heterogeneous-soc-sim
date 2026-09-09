@@ -192,7 +192,7 @@ void test_install_line_creates_hit()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     assert(cache.contains(0x20));
 }
@@ -205,7 +205,7 @@ void test_install_line_covers_entire_line()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     assert(cache.contains(0x20));
     assert(cache.contains(0x21));
@@ -220,7 +220,7 @@ void test_install_line_different_line_is_miss()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     assert(cache.contains(0x20));
     assert(!cache.contains(0x30));
@@ -234,11 +234,27 @@ void test_install_multiple_lines_same_set()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x00, line);
-    cache.install_line(0x20, line);
+    cache.install_line(0x00, line, MESIState::Exclusive);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     assert(cache.contains(0x00));
     assert(cache.contains(0x20));
+}
+
+void test_install_state()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+
+    cache.install_line(0x20, line, MESIState::Exclusive);
+
+    const CacheLine* result = cache.find_line(0x20);
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Exclusive);
 }
 
 void test_find_line_empty_cache()
@@ -257,7 +273,7 @@ void test_find_line_returns_installed_line()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     const CacheLine* result = cache.find_line(0x20);
 
@@ -276,7 +292,7 @@ void test_find_line_returns_correct_data()
     line.data[5] = 0x42;
     line.data[15] = 0xFF;
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     const CacheLine* result = cache.find_line(0x20);
 
@@ -294,7 +310,7 @@ void test_find_line_different_line()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     assert(cache.find_line(0x30) == nullptr);
 }
@@ -307,7 +323,7 @@ void test_find_line_same_cache_line()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     const CacheLine* first = cache.find_line(0x20);
     const CacheLine* second = cache.find_line(0x25);
@@ -330,7 +346,7 @@ void test_read_installed_byte()
     line.data.resize(config.cache_line_size);
     line.data[0] = 0xAA;
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     assert(cache.read(0x20) == 0xAA);
 }
@@ -347,7 +363,7 @@ void test_read_different_offsets()
     line.data[5]  = 0x55;
     line.data[15] = 0xFF;
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     assert(cache.read(0x20) == 0x11);
     assert(cache.read(0x25) == 0x55);
@@ -367,8 +383,8 @@ void test_read_multiple_lines()
     line2.data.resize(config.cache_line_size);
     line2.data[0] = 0xBB;
 
-    cache.install_line(0x20, line1);
-    cache.install_line(0x30, line2);
+    cache.install_line(0x20, line1, MESIState::Exclusive);
+    cache.install_line(0x30, line2, MESIState::Exclusive);
 
     assert(cache.read(0x20) == 0xAA);
     assert(cache.read(0x30) == 0xBB);
@@ -382,7 +398,7 @@ void test_write_and_read()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     cache.write(0x20, 0xAB);
 
@@ -397,7 +413,7 @@ void test_write_different_offsets()
     CacheLine line{};
     line.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     cache.write(0x20, 0x11);
     cache.write(0x25, 0x55);
@@ -419,7 +435,7 @@ void test_write_preserves_other_bytes()
     line.data[0] = 0xAA;
     line.data[1] = 0xBB;
 
-    cache.install_line(0x20, line);
+    cache.install_line(0x20, line, MESIState::Exclusive);
 
     cache.write(0x20, 0x11);
 
@@ -438,14 +454,297 @@ void test_write_multiple_lines()
     CacheLine line2{};
     line2.data.resize(config.cache_line_size);
 
-    cache.install_line(0x20, line1);
-    cache.install_line(0x30, line2);
+    cache.install_line(0x20, line1, MESIState::Exclusive);
+    cache.install_line(0x30, line2, MESIState::Exclusive);
 
     cache.write(0x20, 0xAA);
     cache.write(0x30, 0xBB);
 
     assert(cache.read(0x20) == 0xAA);
     assert(cache.read(0x30) == 0xBB);
+}
+
+void test_read_hit_preserves_shared_state()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+
+    cache.install_line(0x20, line, MESIState::Shared);
+
+    cache.read(0x20);
+
+    const CacheLine* result = cache.find_line(0x20);
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Shared);
+}
+
+void test_read_hit_preserves_exclusive_state()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+
+    cache.install_line(0x20, line, MESIState::Exclusive);
+
+    cache.read(0x20);
+
+    const CacheLine* result = cache.find_line(0x20);
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Exclusive);
+}
+
+void test_read_hit_preserves_modified_state()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+
+    cache.install_line(0x20, line, MESIState::Modified);
+
+    cache.read(0x20);
+
+    const CacheLine* result = cache.find_line(0x20);
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Modified);
+}
+
+void test_write_shared_state()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+
+    cache.install_line(0x20, line, MESIState::Shared);
+
+    cache.write(0x20, 0xAB);
+
+    const CacheLine* result = cache.find_line(0x20);
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Shared);
+    assert(cache.read(0x20) == 0xAB);
+}
+
+void test_write_exclusive_transitions_to_modified()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+
+    cache.install_line(0x20, line, MESIState::Exclusive);
+
+    cache.write(0x20, 0xAB);
+
+    const CacheLine* result = cache.find_line(0x20);
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Modified);
+    assert(cache.read(0x20) == 0xAB);
+}
+
+void test_write_modified_state()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+
+    cache.install_line(0x20, line, MESIState::Modified);
+
+    cache.write(0x20, 0xAB);
+
+    const CacheLine* result = cache.find_line(0x20);
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Modified);
+    assert(cache.read(0x20) == 0xAB);
+}
+
+void test_snoop_busrd_shared_state()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+    line.data[0] = 42;
+
+    cache.install_line(0x00, line, MESIState::Shared);
+
+    cache.snoop(CoherenceTransaction::BusRd, 0x00);
+
+    const CacheLine* result{cache.find_line(0x00)};
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Shared);
+}
+
+
+void test_snoop_busrd_exclusive_to_shared()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+
+    cache.install_line(0x00, line, MESIState::Exclusive);
+
+    cache.snoop(CoherenceTransaction::BusRd, 0x00);
+
+    const CacheLine* result{cache.find_line(0x00)};
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Shared);
+}
+
+
+void test_snoop_busrd_modified_to_shared()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+    line.data[0] = 42;
+
+    cache.install_line(0x00, line, MESIState::Modified);
+
+    cache.snoop(CoherenceTransaction::BusRd, 0x00);
+
+    const CacheLine* result{cache.find_line(0x00)};
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Shared);
+
+    // Snoop should not modify the cached data.
+    assert(result->data[0] == 42);
+}
+
+
+void test_snoop_busrdx_shared_to_invalid()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+
+    cache.install_line(0x00, line, MESIState::Shared);
+
+    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
+
+    assert(!cache.contains(0x00));
+}
+
+
+void test_snoop_busrdx_exclusive_to_invalid()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+
+    cache.install_line(0x00, line, MESIState::Exclusive);
+
+    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
+
+    assert(!cache.contains(0x00));
+}
+
+
+void test_snoop_busrdx_modified_to_invalid()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+    line.data.resize(config.cache_line_size);
+    line.data[0] = 42;
+
+    cache.install_line(0x00, line, MESIState::Modified);
+
+    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
+
+    assert(!cache.contains(0x00));
+}
+
+
+void test_snoop_busupgr_shared_to_invalid()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+
+    cache.install_line(0x00, line, MESIState::Shared);
+
+    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+
+    assert(!cache.contains(0x00));
+}
+
+
+void test_snoop_busupgr_exclusive_to_invalid()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+
+    cache.install_line(0x00, line, MESIState::Exclusive);
+
+    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+
+    assert(!cache.contains(0x00));
+}
+
+
+void test_snoop_busupgr_modified_unchanged()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    CacheLine line{};
+
+    cache.install_line(0x00, line, MESIState::Modified);
+
+    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+
+    const CacheLine* result{cache.find_line(0x00)};
+
+    assert(result != nullptr);
+    assert(result->state == MESIState::Modified);
+}
+
+
+void test_snoop_absent_line()
+{
+    SystemConfig config{};
+    Cache cache{config};
+
+    // There is no line at this address.
+    assert(!cache.contains(0x00));
+
+    // Snoop should simply do nothing rather than dereferencing nullptr.
+    cache.snoop(CoherenceTransaction::BusRd, 0x00);
+    cache.snoop(CoherenceTransaction::BusRdX, 0x00);
+    cache.snoop(CoherenceTransaction::BusUpgr, 0x00);
+
+    assert(!cache.contains(0x00));
 }
 
 int main()
@@ -459,11 +758,11 @@ int main()
     test_tag_decomposition();
     test_offset_set_and_tag();
 
-    // test cache geometry 
+    // test cache geometry
     /*
     test_cache_geometry();
     test_cache_lines_initialised();
-    test_custom_cache_geometry(); 
+    test_custom_cache_geometry();
     */
 
     // test cache lookup
@@ -474,7 +773,8 @@ int main()
     test_install_line_covers_entire_line();
     test_install_line_different_line_is_miss();
     test_install_multiple_lines_same_set();
-    
+    test_install_state();
+
     // test find_line()
     test_find_line_empty_cache();
     test_find_line_returns_installed_line();
@@ -487,12 +787,36 @@ int main()
     test_read_different_offsets();
     test_read_multiple_lines();
 
-    // test read()
+    // test write()
     test_write_and_read();
     test_write_different_offsets();
     test_write_preserves_other_bytes();
     test_write_multiple_lines();
 
+    // test MESI read-hit transitions
+    test_read_hit_preserves_shared_state();
+    test_read_hit_preserves_exclusive_state();
+    test_read_hit_preserves_modified_state();
+
+    // test MESI write-hit transitions
+    test_write_shared_state();
+    test_write_exclusive_transitions_to_modified();
+    test_write_modified_state();
+
+    // test snooping
+    test_snoop_busrd_shared_state();
+    test_snoop_busrd_exclusive_to_shared();
+    test_snoop_busrd_modified_to_shared();
+
+    test_snoop_busrdx_shared_to_invalid();
+    test_snoop_busrdx_exclusive_to_invalid();
+    test_snoop_busrdx_modified_to_invalid();
+
+    test_snoop_busupgr_shared_to_invalid();
+    test_snoop_busupgr_exclusive_to_invalid();
+    test_snoop_busupgr_modified_unchanged();
+
+    test_snoop_absent_line();
 
     std::cout << "All cache tests passed!\n";
 

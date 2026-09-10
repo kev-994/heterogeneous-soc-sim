@@ -3,6 +3,7 @@
 #include "types.hpp"
 #include "config.hpp"
 #include "utils.hpp"
+#include "memory.hpp"
 
 #include <cstdint>
 #include <cassert>
@@ -28,6 +29,13 @@ struct CacheLine
     std::uint32_t tag{};
     std::vector<std::uint8_t> data{};
     MESIState state{MESIState::Invalid};
+};
+
+struct SnoopResult
+{
+    bool copy_exists{};
+    bool supplies_data{};
+    LineData line_data{};
 };
 
 class Cache
@@ -59,12 +67,12 @@ public:
     bool contains(Address address) const;
     void install_line(Address address, const CacheLine& line, MESIState state);
     CacheLine* find_line(Address address); 
-    const CacheLine* find_line(Address address) const; // used by find_line() and contains()
+    const CacheLine* find_line(Address address) const; // used by read() and contains()
     std::uint8_t read(Address address) const;
     void write(Address address, std::uint8_t data);
     void handle_read_hit(const CacheLine& line) const;
     void handle_write_hit(CacheLine& line);
-    void snoop(Transaction transaction_type, Address address);
+    SnoopResult snoop(Transaction transaction_type, Address address);
     AgentId agent_id() const {return m_agent_id;}
 
 private:

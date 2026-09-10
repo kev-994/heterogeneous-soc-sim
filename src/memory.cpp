@@ -1,8 +1,5 @@
 #include "memory.hpp"
 
-#include <cassert>
-#include <cstdint>
-
 std::uint8_t Memory::read_byte(Address address) const
 {
     assert(address < m_config.memory_capacity);
@@ -15,7 +12,7 @@ void Memory::write_byte(Address address, std::uint8_t data)
     m_memory[address] = data;
 }
 
-Memory::LineData Memory::read_line(Address line_base) const
+LineData Memory::read_line(Address line_base) const
 {
     assert(line_base % m_config.cache_line_size == 0); // cache line alignment
     assert(line_base + m_config.cache_line_size <= m_config.memory_capacity); // validity of line to be accessed

@@ -1,11 +1,5 @@
 #include "cache.hpp"
 
-#include "types.hpp"
-#include "utils.hpp"
-
-#include <cassert>
-#include <cstdint>
-
 AddressDecomposition Cache::decompose(Address address) const
 {
     AddressDecomposition decomposed_address{};
@@ -156,13 +150,15 @@ void Cache::handle_write_hit(CacheLine& line)
     }
 }
 
-void Cache::snoop(Transaction transaction_type, Address address) // snoop target 
+SnoopResult Cache::snoop(Transaction transaction_type, Address address) // snoop target 
 {
+    SnoopResult result{};
+    
     CacheLine* line{find_line(address)};
 
     if (line == nullptr)
     {
-        return;
+        return result;
     }
 
     auto& state{line->state};
@@ -177,22 +173,30 @@ void Cache::snoop(Transaction transaction_type, Address address) // snoop target
             {
                 case MESIState::Invalid:
                 {
-                    return;
+                    return result;
                 }
                 case MESIState::Shared: [[fallthrough]];
-                case MESIState::Exclusive: [[fallthrough]];
+                case MESIState::Exclusive: 
+                {
+                    result.copy_exists = true;
+                    state = MESIState::Shared;
+                    return result;
+                }
                 case MESIState::Modified:
-                    {
-                        state = MESIState::Shared;
-                        return;
-                    }   
+                {
+                    result.copy_exists = true;
+                    result.supplies_data = true;
+                    result.line_data.data = line->data;
+                    state = MESIState::Shared;
+                    return result;
+                }   
             }
         }
         
         case BusRdX:
         {
             state = MESIState::Invalid;
-            return;
+            return result;
         }
 
         case BusUpgr:
@@ -201,15 +205,21 @@ void Cache::snoop(Transaction transaction_type, Address address) // snoop target
             {
                 case MESIState::Modified:
                 {
-                    return;
+                    assert(false); // this shouldn't happen
+                    return result;
                 }
                 case MESIState::Shared: [[fallthrough]];
-                case MESIState::Exclusive: [[fallthrough]];
+                case MESIState::Exclusive: 
+                {
+                    result.copy_exists = true;
+                    state = MESIState::Invalid;
+                    return result;
+                }
                 case MESIState::Invalid: 
-                    {
-                        state = MESIState::Invalid;
-                        return;
-                    }   
+                {
+                    state = MESIState::Invalid;
+                    return result;
+                }   
             }   
         }
         

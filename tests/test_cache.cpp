@@ -575,6 +575,11 @@ void test_write_modified_state()
     assert(cache.read(0x20) == 0xAB);
 }
 
+
+// -----------------------------------------------------------------------------
+// Snoop tests
+// -----------------------------------------------------------------------------
+
 void test_snoop_busrd_shared_state()
 {
     SystemConfig config{};
@@ -586,12 +591,15 @@ void test_snoop_busrd_shared_state()
 
     cache.install_line(0x00, line, MESIState::Shared);
 
-    cache.snoop(Transaction::BusRd, 0x00);
+    SnoopResult result = cache.snoop(Transaction::BusRd, 0x00);
 
-    const CacheLine* result{cache.find_line(0x00)};
+    const CacheLine* cached_line{cache.find_line(0x00)};
 
-    assert(result != nullptr);
-    assert(result->state == MESIState::Shared);
+    assert(cached_line != nullptr);
+    assert(cached_line->state == MESIState::Shared);
+
+    // A clean Shared cache does not need to supply the data.
+    assert(!result.supplies_data);
 }
 
 void test_snoop_busrd_exclusive_to_shared()
@@ -600,15 +608,19 @@ void test_snoop_busrd_exclusive_to_shared()
     Cache cache{config, 0};
 
     CacheLine line{};
+    line.data.resize(config.cache_line_size);
 
     cache.install_line(0x00, line, MESIState::Exclusive);
 
-    cache.snoop(Transaction::BusRd, 0x00);
+    SnoopResult result = cache.snoop(Transaction::BusRd, 0x00);
 
-    const CacheLine* result{cache.find_line(0x00)};
+    const CacheLine* cached_line{cache.find_line(0x00)};
 
-    assert(result != nullptr);
-    assert(result->state == MESIState::Shared);
+    assert(cached_line != nullptr);
+    assert(cached_line->state == MESIState::Shared);
+
+    // Exclusive is clean, so memory can satisfy the request.
+    assert(!result.supplies_data);
 }
 
 void test_snoop_busrd_modified_to_shared()
@@ -618,19 +630,50 @@ void test_snoop_busrd_modified_to_shared()
 
     CacheLine line{};
     line.data.resize(config.cache_line_size);
-    line.data[0] = 42;
+
+    for (std::uint32_t i{}; i < config.cache_line_size; ++i)
+    {
+        line.data[i] = static_cast<std::uint8_t>(i + 1);
+    }
 
     cache.install_line(0x00, line, MESIState::Modified);
 
-    cache.snoop(Transaction::BusRd, 0x00);
+    SnoopResult result = cache.snoop(Transaction::BusRd, 0x00);
 
-    const CacheLine* result{cache.find_line(0x00)};
+    const CacheLine* cached_line{cache.find_line(0x00)};
 
-    assert(result != nullptr);
-    assert(result->state == MESIState::Shared);
+    assert(cached_line != nullptr);
+    assert(cached_line->state == MESIState::Shared);
 
-    // Snoop should not modify the cached data.
-    assert(result->data[0] == 42);
+    // Modified is the only MESI state where memory may contain stale data,
+    // so the cache must supply the latest line.
+    assert(result.supplies_data);
+
+    assert(result.line_data.data.size() == config.cache_line_size);
+
+    for (std::uint32_t i{}; i < config.cache_line_size; ++i)
+    {
+        assert(result.line_data.data[i] == static_cast<std::uint8_t>(i + 1));
+    }
+
+    // Snoop should not modify the cached data itself.
+    for (std::uint32_t i{}; i < config.cache_line_size; ++i)
+    {
+        assert(cached_line->data[i] == static_cast<std::uint8_t>(i + 1));
+    }
+}
+
+void test_snoop_busrd_absent_line_supplies_no_data()
+{
+    SystemConfig config{};
+    Cache cache{config, 0};
+
+    assert(!cache.contains(0x00));
+
+    SnoopResult result = cache.snoop(Transaction::BusRd, 0x00);
+
+    assert(!result.supplies_data);
+    assert(!cache.contains(0x00));
 }
 
 void test_snoop_busrdx_shared_to_invalid()
@@ -642,7 +685,7 @@ void test_snoop_busrdx_shared_to_invalid()
 
     cache.install_line(0x00, line, MESIState::Shared);
 
-    cache.snoop(Transaction::BusRdX, 0x00);
+    (void)cache.snoop(Transaction::BusRdX, 0x00);
 
     assert(!cache.contains(0x00));
 }
@@ -656,7 +699,7 @@ void test_snoop_busrdx_exclusive_to_invalid()
 
     cache.install_line(0x00, line, MESIState::Exclusive);
 
-    cache.snoop(Transaction::BusRdX, 0x00);
+    (void)cache.snoop(Transaction::BusRdX, 0x00);
 
     assert(!cache.contains(0x00));
 }
@@ -672,7 +715,7 @@ void test_snoop_busrdx_modified_to_invalid()
 
     cache.install_line(0x00, line, MESIState::Modified);
 
-    cache.snoop(Transaction::BusRdX, 0x00);
+    (void)cache.snoop(Transaction::BusRdX, 0x00);
 
     assert(!cache.contains(0x00));
 }
@@ -686,7 +729,7 @@ void test_snoop_busupgr_shared_to_invalid()
 
     cache.install_line(0x00, line, MESIState::Shared);
 
-    cache.snoop(Transaction::BusUpgr, 0x00);
+    (void)cache.snoop(Transaction::BusUpgr, 0x00);
 
     assert(!cache.contains(0x00));
 }
@@ -700,7 +743,7 @@ void test_snoop_busupgr_exclusive_to_invalid()
 
     cache.install_line(0x00, line, MESIState::Exclusive);
 
-    cache.snoop(Transaction::BusUpgr, 0x00);
+    (void)cache.snoop(Transaction::BusUpgr, 0x00);
 
     assert(!cache.contains(0x00));
 }
@@ -714,7 +757,7 @@ void test_snoop_busupgr_modified_unchanged()
 
     cache.install_line(0x00, line, MESIState::Modified);
 
-    cache.snoop(Transaction::BusUpgr, 0x00);
+    (void)cache.snoop(Transaction::BusUpgr, 0x00);
 
     const CacheLine* result{cache.find_line(0x00)};
 
@@ -730,10 +773,13 @@ void test_snoop_absent_line()
     // There is no line at this address.
     assert(!cache.contains(0x00));
 
-    // Snoop should simply do nothing rather than dereferencing nullptr.
-    cache.snoop(Transaction::BusRd, 0x00);
-    cache.snoop(Transaction::BusRdX, 0x00);
-    cache.snoop(Transaction::BusUpgr, 0x00);
+    SnoopResult busrd_result = cache.snoop(Transaction::BusRd, 0x00);
+    SnoopResult busrdx_result = cache.snoop(Transaction::BusRdX, 0x00);
+    SnoopResult busupgr_result = cache.snoop(Transaction::BusUpgr, 0x00);
+
+    assert(!busrd_result.supplies_data);
+    assert(!busrdx_result.supplies_data);
+    assert(!busupgr_result.supplies_data);
 
     assert(!cache.contains(0x00));
 }
@@ -798,6 +844,7 @@ int main()
     test_snoop_busrd_shared_state();
     test_snoop_busrd_exclusive_to_shared();
     test_snoop_busrd_modified_to_shared();
+    test_snoop_busrd_absent_line_supplies_no_data();
 
     test_snoop_busrdx_shared_to_invalid();
     test_snoop_busrdx_exclusive_to_invalid();

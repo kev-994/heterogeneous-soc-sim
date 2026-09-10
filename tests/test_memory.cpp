@@ -52,7 +52,7 @@ void test_read_line()
         memory.write_byte(i, static_cast<std::uint8_t>(i + 1));
     }
 
-    Memory::LineData line = memory.read_line(0);
+    LineData line = memory.read_line(0);
 
     assert(line.data.size() == config.cache_line_size);
 
@@ -67,7 +67,7 @@ void test_write_line()
     SystemConfig config{};
     Memory memory{config};
 
-    Memory::LineData line{};
+    LineData line{};
     line.data.resize(config.cache_line_size);
 
     for (std::uint32_t i = 0; i < config.cache_line_size; ++i)
@@ -91,7 +91,7 @@ void test_read_write_line()
     SystemConfig config{};
     Memory memory{config};
 
-    Memory::LineData write_data{};
+    LineData write_data{};
     write_data.data.resize(config.cache_line_size);
 
     for (std::uint32_t i = 0; i < config.cache_line_size; ++i)
@@ -101,7 +101,7 @@ void test_read_write_line()
 
     memory.write_line(16, write_data);
 
-    Memory::LineData read_data = memory.read_line(16);
+    LineData read_data = memory.read_line(16);
 
     assert(read_data.data.size() == config.cache_line_size);
 
@@ -119,7 +119,7 @@ void test_last_memory_line()
     Address last_line =
         config.memory_capacity - config.cache_line_size;
 
-    Memory::LineData line{};
+    LineData line{};
     line.data.resize(config.cache_line_size);
 
     for (std::uint32_t i = 0; i < config.cache_line_size; ++i)
@@ -129,7 +129,7 @@ void test_last_memory_line()
 
     memory.write_line(last_line, line);
 
-    Memory::LineData read_data = memory.read_line(last_line);
+    LineData read_data = memory.read_line(last_line);
 
     for (std::uint32_t i = 0; i < config.cache_line_size; ++i)
     {
@@ -144,7 +144,7 @@ void test_aligned_line()
 
     Address line_base = config.cache_line_size * 1;
 
-    Memory::LineData line{};
+    LineData line{};
     line.data.resize(config.cache_line_size);
 
     for (std::uint32_t i = 0; i < config.cache_line_size; ++i)
@@ -154,7 +154,7 @@ void test_aligned_line()
 
     memory.write_line(line_base, line);
 
-    Memory::LineData read_data = memory.read_line(line_base);
+    LineData read_data = memory.read_line(line_base);
 
     for (std::uint32_t i = 0; i < config.cache_line_size; ++i)
     {
@@ -167,10 +167,10 @@ void test_independent_lines()
     SystemConfig config{};
     Memory memory{config};
 
-    Memory::LineData line_a{};
+    LineData line_a{};
     line_a.data.resize(config.cache_line_size);
 
-    Memory::LineData line_b{};
+    LineData line_b{};
     line_b.data.resize(config.cache_line_size);
 
     line_a.data[0] = 0xAA;

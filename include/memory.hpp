@@ -5,6 +5,12 @@
 
 #include <cstdint>
 #include <vector>
+#include <cassert>
+
+struct LineData // = the bytes belonging to a cache line being transferred between components.
+{
+    std::vector<std::uint8_t> data{};
+};
 
 class Memory
 {
@@ -12,11 +18,6 @@ public:
     Memory(const SystemConfig& config)
         : m_config{config}, m_memory(config.memory_capacity, 0)
     {}
-
-    struct LineData
-    {
-        std::vector<std::uint8_t> data{};
-    };
 
     std::uint8_t read_byte(Address address) const;
     void write_byte(Address address, std::uint8_t data);

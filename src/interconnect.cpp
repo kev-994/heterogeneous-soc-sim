@@ -1,17 +1,15 @@
 #include "interconnect.hpp"
 
-#include "cache.hpp"
-#include "types.hpp"
-
-#include <vector>
-
 void Interconnect::attach_cache(Cache& cache)
 {
     m_caches.push_back(&cache);
 }
 
-void Interconnect::broadcast(const CoherenceTransaction& transaction)
+CoherenceResponse Interconnect::broadcast(CoherenceTransaction& transaction)
 {
+    std::uint32_t suppliers{};
+    CoherenceResponse response{};
+    
     for (Cache* cache : m_caches)
     {
         if (cache->agent_id() == transaction.agent_id) // skip requester
@@ -19,6 +17,21 @@ void Interconnect::broadcast(const CoherenceTransaction& transaction)
             continue;
         }
 
-        cache->snoop(transaction.type, transaction.address);
+        const auto result{cache->snoop(transaction.type, transaction.address)};
+
+        if (result.copy_exists)
+        {
+            response.copy_exists = true;
+        }
+
+        if (result.supplies_data)
+        {
+            response.data = result.line_data; // take data from cache that supplies it
+            ++suppliers;
+        }
     }
+
+    assert(suppliers <= 1);
+
+    return response;
 }
